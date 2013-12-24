@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import simplejson
 
 class BaseHWInfo(object):
 
@@ -26,6 +27,10 @@ class BaseHWInfo(object):
 
 	@property
 	def processor(self):
+		pass
+
+	@property
+	def devices(self):
 		pass
 
 
@@ -64,3 +69,15 @@ class ProcessorModelInfo(object):
 
 	def __str__(self):
 		return self.__repr__()
+
+
+class PCIDeviceInfo(object):
+
+	def __init__(self, **kwargs):
+		self.data = kwargs
+
+	def __getattr__(self, item):
+		return self.data.get(item, None)
+
+	def __repr__(self):
+		return "Bus: %s, Device Function: %s, Vendor: %s, Device: %s" % (self.bus, self.devfunc, self.vendor, self.device)

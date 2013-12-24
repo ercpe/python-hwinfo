@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
-from hwinfo.impl.base import BaseHWInfo, ProcessorInfo
+from hwinfo.impl.base import BaseHWInfo, ProcessorInfo, PCIDeviceInfo
 import re
 
 MEM_INFO_RE = re.compile("^(.*):\s+(\d+)\s?([kBGM]*)")
 
 
 class LinuxHWInfo(BaseHWInfo):
+
+	def __init__(self):
+		super(BaseHWInfo, self).__init__()
+		self._devices = []
 
 	@property
 	def memory(self):
@@ -61,3 +65,33 @@ class LinuxHWInfo(BaseHWInfo):
 			data['processors'].append(proc_info)
 
 		return ProcessorInfo(data)
+
+	@property
+	def devices(self):
+		"""
+		Returns a list of PCIDeviceInfo objects with the data from /proc/bus/pci/devices
+		"""
+		if not self._devices:
+			devs = []
+			with open('/proc/bus/pci/devices', 'r') as f:
+				for line in [x.strip() for x in f.readlines()]:
+					parts = line.split('\t')
+
+					driver = None
+					if len(parts) == 18:
+						driver = parts[17]
+
+					bus_devfunc = parts[0]
+					vendor_device = parts[1]
+
+					bus = bus_devfunc[0:2]
+					devfunc = bus_devfunc[2:]
+
+					vendor = vendor_device[0:4]
+					device = vendor_device[4:]
+
+					devs.append(PCIDeviceInfo(bus=bus, devfunc=devfunc, vendor=vendor, device=device, driver=driver))
+
+			self._devices = devs
+
+		return self._devices
