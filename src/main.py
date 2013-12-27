@@ -6,7 +6,8 @@ import pprint
 
 hw = HWInfo()
 
-print hw.devices
+for dev in hw.devices:
+	print dev
 
 #print hw.processor
 #print "Sockets: %s" % hw.processor
