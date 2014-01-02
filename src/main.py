@@ -6,10 +6,11 @@ import pprint
 
 hw = HWInfo()
 
-for dev in hw.devices:
-	print dev
+#for dev in hw.devices:
+#	print dev, dev.slot, dev.function
 
-#print hw.processor
+print hw.processor
+
 #print "Sockets: %s" % hw.processor
 #print "Processors: %s" % pprint.pformat(hw.processor.processors)
 #print hw.memory

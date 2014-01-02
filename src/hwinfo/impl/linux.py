@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from hwinfo.impl.base import BaseHWInfo, ProcessorInfo, PCIDeviceInfo
 import re
+import subprocess
+import logging
 
 MEM_INFO_RE = re.compile("^(.*):\s+(\d+)\s?([kBGM]*)")
 
@@ -10,6 +12,7 @@ class LinuxHWInfo(BaseHWInfo):
 	def __init__(self):
 		super(BaseHWInfo, self).__init__()
 		self._devices = []
+		self._pinfo = None
 
 	@property
 	def memory(self):
@@ -21,10 +24,8 @@ class LinuxHWInfo(BaseHWInfo):
 					if key == "MemTotal":
 						return self.get_value(long(value), unit.strip())
 
-	@property
-	def processor(self):
+	def _read_cpuinfo(self, data):
 		# this is a naive implementation and may break on other archs...
-
 		with open('/proc/cpuinfo', 'r') as f:
 			cpus = []
 
@@ -45,8 +46,6 @@ class LinuxHWInfo(BaseHWInfo):
 			if current:
 				cpus.append(current)
 
-		data = {}
-
 		physicals = list(set([int(d.get('physical id', 0)) for d in cpus]))
 		data['sockets'] = len(physicals)
 		data['processors'] = []
@@ -64,7 +63,50 @@ class LinuxHWInfo(BaseHWInfo):
 
 			data['processors'].append(proc_info)
 
-		return ProcessorInfo(data)
+		return data
+
+	def _read_processor_info(self):
+		data = {}
+
+		# try to get the information via a lscpu call
+		if self.executable_exists('lscpu'):
+			output = None
+			try:
+				proc = subprocess.Popen('lscpu', stdout=subprocess.PIPE, env={'LANG': 'C'})
+				output = proc.stdout.read()
+			except Exception as ex:
+				logging.error("lscpu call failed: %s" % ex)
+
+			if output:
+				d = dict([(line[:line.index(':')].strip(), line[line.index(':')+1:].strip()) for line in output.split('\n') if line])
+
+				data['arch'] = d.get('Architecture', None)
+				data['byte_order'] = d.get('Byte Order', None)
+				data['cpu_vendor'] = d.get('Vendor ID', None)
+
+				data['sockets'] = int(d.get('Socket(s)', 1))
+				data['cores'] = data['sockets'] * int(d.get('Core(s) per socket', 1))
+				data['threads'] = data['cores'] * int(d.get('Thread(s) per core', 1))
+
+				data['virtualization'] = {
+					'hypervisor': d.get('Hypervisor vendor', None),
+					'type': d.get('Virtualization type', None)
+				}
+
+		for k in data.keys():
+			if not data[k]:
+				del data[k]
+
+		# fill the missing informations from /proc/cpuinfo
+		data = self._read_cpuinfo(data)
+
+		self._pinfo = ProcessorInfo(data)
+
+	@property
+	def processor(self):
+		if not self._pinfo:
+			self._read_processor_info()
+		return self._pinfo
 
 	@property
 	def devices(self):
