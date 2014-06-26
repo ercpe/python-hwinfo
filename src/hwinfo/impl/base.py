@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import simplejson
 import os
 
@@ -46,6 +45,25 @@ class BaseHWInfo(object):
 				return True
 
 		return False
+
+	def as_json(self):
+		def serialize_default(o):
+			if isinstance(o, set):
+				return list(o)
+
+			d = o.__dict__
+			#for x in dir(self):
+			#	print x, getattr(self, x)
+			#print [p for p in dir(self) if isinstance(getattr(self,p),property)]
+			[p for p in dir(self) if not isinstance(getattr(self,p),property)]
+			#for prop in [p for p in dir(self) if not isinstance(getattr(self,p),property)]:
+			#	print prop
+				#pass
+			return d
+
+#		for property, value in vars(self).iteritems():
+#			print property, value
+		print simplejson.dumps(self, default=serialize_default)
 
 
 class ProcessorInfo(object):
